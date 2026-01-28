@@ -4,20 +4,15 @@
  * Resolves which JIRA/Tempo instance to use based on the current
  * working directory (cwd). Maps folder paths to instance configs.
  *
- * Environment variables:
- *   JIRA_EMAIL              - Your Atlassian email (shared across instances)
- *
- *   JIRA_TOKEN_LAGOASOFT    - JIRA API token for lagoasoft.atlassian.net
- *   JIRA_TOKEN_MMW          - JIRA API token for markenmehrwert.atlassian.net
- *   JIRA_TOKEN_PARES        - JIRA API token for pares-it.atlassian.net
- *
- *   TEMPO_TOKEN_LAGOASOFT   - Tempo API token for lagoasoft
- *   TEMPO_TOKEN_MMW         - Tempo API token for markenmehrwert
- *   TEMPO_TOKEN_PARES       - Tempo API token for pares-it
- *
- *   DEFAULT_BASE_BRANCH     - Default base branch (default: "main")
+ * Configuration priority:
+ *   1. Config file: ~/.config/jira-tempo-mcp/config.json
+ *   2. Config file: ~/.jira-tempo-mcp.json
+ *   3. Environment variables (legacy)
  */
 
+import { readFileSync, existsSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 import { JiraConfig } from "./jira-client.js";
 import { TempoConfig } from "./tempo-client.js";
 
@@ -34,27 +29,76 @@ export interface ResolvedConfig {
   baseBranch: string;
 }
 
-function getEnvOrThrow(key: string): string {
-  const val = process.env[key];
-  if (!val) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return val;
+/** Config file format */
+interface ConfigFile {
+  email: string;
+  baseBranch?: string;
+  instances: Array<{
+    name: string;
+    baseUrl: string;
+    jiraToken: string;
+    tempoToken: string;
+    pathPatterns: string[];
+  }>;
 }
+
+let cachedConfig: { instances: InstanceConfig[]; baseBranch: string } | null = null;
 
 function getEnvOrNull(key: string): string | null {
   return process.env[key] ?? null;
 }
 
 /**
- * Build all instance configs from environment variables.
+ * Try to load config from file
  */
-function buildInstances(): InstanceConfig[] {
-  const email = getEnvOrThrow("JIRA_EMAIL");
+function loadConfigFile(): ConfigFile | null {
+  const configPaths = [
+    join(homedir(), ".config", "jira-tempo-mcp", "config.json"),
+    join(homedir(), ".jira-tempo-mcp.json"),
+  ];
+
+  for (const configPath of configPaths) {
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, "utf-8");
+        return JSON.parse(content) as ConfigFile;
+      } catch (err) {
+        console.error(`Failed to parse config file ${configPath}:`, err);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Build instances from config file
+ */
+function buildInstancesFromFile(config: ConfigFile): InstanceConfig[] {
+  return config.instances.map((inst) => ({
+    name: inst.name,
+    jira: {
+      baseUrl: inst.baseUrl,
+      email: config.email,
+      apiToken: inst.jiraToken,
+    },
+    tempo: {
+      apiToken: inst.tempoToken,
+    },
+    pathPatterns: inst.pathPatterns,
+  }));
+}
+
+/**
+ * Build instances from environment variables (legacy)
+ */
+function buildInstancesFromEnv(): InstanceConfig[] {
+  const email = process.env.JIRA_EMAIL;
+  if (!email) return [];
 
   const instances: InstanceConfig[] = [];
 
-  // Markenmehrwert (MMW) - check first since patterns are more specific
+  // Markenmehrwert (MMW)
   const mmwJiraToken = getEnvOrNull("JIRA_TOKEN_MMW");
   const mmwTempoToken = getEnvOrNull("TEMPO_TOKEN_MMW");
   if (mmwJiraToken && mmwTempoToken) {
@@ -78,7 +122,7 @@ function buildInstances(): InstanceConfig[] {
     });
   }
 
-  // Lagoasoft - last because "lagoasoft" appears in home dir path
+  // Lagoasoft
   const lagoasoftJiraToken = getEnvOrNull("JIRA_TOKEN_LAGOASOFT");
   const lagoasoftTempoToken = getEnvOrNull("TEMPO_TOKEN_LAGOASOFT");
   if (lagoasoftJiraToken && lagoasoftTempoToken) {
@@ -94,35 +138,59 @@ function buildInstances(): InstanceConfig[] {
 }
 
 /**
+ * Build all instance configs (cached)
+ */
+function buildInstances(): { instances: InstanceConfig[]; baseBranch: string } {
+  if (cachedConfig) return cachedConfig;
+
+  // Try config file first
+  const configFile = loadConfigFile();
+  if (configFile) {
+    cachedConfig = {
+      instances: buildInstancesFromFile(configFile),
+      baseBranch: configFile.baseBranch ?? "main",
+    };
+    return cachedConfig;
+  }
+
+  // Fall back to environment variables
+  cachedConfig = {
+    instances: buildInstancesFromEnv(),
+    baseBranch: process.env.DEFAULT_BASE_BRANCH ?? "main",
+  };
+  return cachedConfig;
+}
+
+/**
  * Resolve which instance to use based on the current working directory.
  * Falls back to the first configured instance if no path match is found.
  */
 export function resolveInstance(cwd: string): ResolvedConfig {
-  const instances = buildInstances();
+  const config = buildInstances();
 
-  if (instances.length === 0) {
+  if (config.instances.length === 0) {
     throw new Error(
-      "No JIRA/Tempo instances configured. Set environment variables (see config.ts)."
+      "No JIRA/Tempo instances configured. Create ~/.config/jira-tempo-mcp/config.json or set environment variables."
     );
   }
 
   const normalizedCwd = cwd.toLowerCase();
 
-  for (const inst of instances) {
+  for (const inst of config.instances) {
     for (const pattern of inst.pathPatterns) {
       if (normalizedCwd.includes(pattern)) {
         return {
           instance: inst,
-          baseBranch: process.env.DEFAULT_BASE_BRANCH ?? "main",
+          baseBranch: config.baseBranch,
         };
       }
     }
   }
 
-  // Fallback: return first instance with a warning
+  // Fallback: return first instance
   return {
-    instance: instances[0],
-    baseBranch: process.env.DEFAULT_BASE_BRANCH ?? "main",
+    instance: config.instances[0],
+    baseBranch: config.baseBranch,
   };
 }
 
@@ -130,8 +198,8 @@ export function resolveInstance(cwd: string): ResolvedConfig {
  * List all configured instances (for diagnostics).
  */
 export function listInstances(): Array<{ name: string; jiraUrl: string; patterns: string[] }> {
-  const instances = buildInstances();
-  return instances.map((i) => ({
+  const config = buildInstances();
+  return config.instances.map((i) => ({
     name: i.name,
     jiraUrl: i.jira.baseUrl,
     patterns: i.pathPatterns,
@@ -142,5 +210,15 @@ export function listInstances(): Array<{ name: string; jiraUrl: string; patterns
  * Get all configured instances (for cross-instance queries).
  */
 export function getAllInstances(): InstanceConfig[] {
-  return buildInstances();
+  return buildInstances().instances;
+}
+
+/**
+ * Get config file paths (for diagnostics).
+ */
+export function getConfigPaths(): string[] {
+  return [
+    join(homedir(), ".config", "jira-tempo-mcp", "config.json"),
+    join(homedir(), ".jira-tempo-mcp.json"),
+  ];
 }

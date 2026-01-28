@@ -12,32 +12,60 @@ MCP (Model Context Protocol) server for JIRA + Tempo workflow automation with mu
 ## Installation
 
 ```bash
-npx jira-tempo-mcp
-```
-
-Or install globally:
-
-```bash
-npm install -g jira-tempo-mcp
+npx github:anluuu/jira-tempo-mcp
 ```
 
 ## Configuration
 
-Add to your Claude Code config (`~/.claude.json`):
+Create a config file at `~/.config/jira-tempo-mcp/config.json`:
+
+```json
+{
+  "email": "your-email@example.com",
+  "baseBranch": "main",
+  "instances": [
+    {
+      "name": "mycompany",
+      "baseUrl": "mycompany.atlassian.net",
+      "jiraToken": "YOUR_JIRA_API_TOKEN",
+      "tempoToken": "YOUR_TEMPO_API_TOKEN",
+      "pathPatterns": ["projects/mycompany/", "mycompany-"]
+    },
+    {
+      "name": "client",
+      "baseUrl": "client.atlassian.net",
+      "jiraToken": "ANOTHER_JIRA_TOKEN",
+      "tempoToken": "ANOTHER_TEMPO_TOKEN",
+      "pathPatterns": ["projects/client/"]
+    }
+  ]
+}
+```
+
+### Getting API Tokens
+
+1. **JIRA API Token**: https://id.atlassian.com/manage-profile/security/api-tokens
+2. **Tempo API Token**: Tempo → Settings → API Integration → New Token
+
+### Claude Code Setup
+
+Add to your `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
     "jira-tempo": {
       "command": "npx",
-      "args": ["-y", "jira-tempo-mcp"],
-      "env": {
-        "JIRA_INSTANCES": "[{\"name\":\"myinstance\",\"baseUrl\":\"https://myinstance.atlassian.net\",\"email\":\"you@email.com\",\"apiToken\":\"YOUR_JIRA_TOKEN\",\"tempoToken\":\"YOUR_TEMPO_TOKEN\",\"pathPatterns\":[\"projects/myinstance/\"]}]"
-      }
+      "args": ["-y", "github:anluuu/jira-tempo-mcp"]
     }
   }
 }
 ```
+
+## Path Patterns
+
+The `pathPatterns` array determines which JIRA instance to use based on your current directory.
+When you run Claude Code in `/home/user/projects/mycompany/frontend`, it matches `projects/mycompany/` and uses that instance's credentials.
 
 ## Available Tools
 
