@@ -1,0 +1,45 @@
+{
+  "name": "jira-tempo-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for JIRA + Tempo workflow automation with multi-instance support",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "jira-tempo-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anluuu/jira-tempo-mcp.git"
+  },
+  "author": "anluuu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/anluuu/jira-tempo-mcp/issues"
+  },
+  "homepage": "https://github.com/anluuu/jira-tempo-mcp#readme",
+  "keywords": [
+    "mcp",
+    "jira",
+    "tempo",
+    "time-tracking",
+    "claude",
+    "model-context-protocol"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
