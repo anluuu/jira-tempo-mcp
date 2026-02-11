@@ -131,7 +131,7 @@ export function resolveInstance(cwd) {
     const normalizedCwd = cwd.toLowerCase();
     for (const inst of config.instances) {
         for (const pattern of inst.pathPatterns) {
-            if (normalizedCwd.includes(pattern)) {
+            if (normalizedCwd.includes(pattern.toLowerCase())) {
                 return {
                     instance: inst,
                     baseBranch: config.baseBranch,
