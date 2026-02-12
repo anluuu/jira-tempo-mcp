@@ -145,10 +145,10 @@ server.registerTool(
   "jira_add_comment",
   {
     title: "Add JIRA Comment",
-    description: "Add a plain-text comment to a JIRA issue.",
+    description: "Add a comment to a JIRA issue. Supports markdown formatting (headings, bold, italic, lists, tables, code blocks).",
     inputSchema: {
       issueKey: z.string().describe("JIRA issue key"),
-      comment: z.string().describe("Comment text to add"),
+      comment: z.string().describe("Comment text (supports markdown)"),
       cwd: z.string().optional(),
     },
   },
@@ -563,7 +563,7 @@ server.registerTool(
       project: z.string().describe("Project key (e.g. 'MRP')"),
       summary: z.string().describe("Issue title/summary"),
       issueType: z.string().describe("Issue type (e.g. 'Task', 'Bug', 'Story')"),
-      description: z.string().describe("Issue description").optional(),
+      description: z.string().describe("Issue description (supports markdown formatting)").optional(),
       priority: z.string().describe("Priority (e.g. 'High', 'Medium', 'Low')").optional(),
       assignToMe: z.boolean().describe("Assign the issue to yourself").optional(),
       cwd: z.string().optional(),

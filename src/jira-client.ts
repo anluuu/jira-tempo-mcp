@@ -3,6 +3,8 @@
  * Docs: https://developer.atlassian.com/cloud/jira/platform/rest/v3/
  */
 
+import { markdownToAdf } from "./markdown-to-adf.js";
+
 export interface JiraConfig {
   baseUrl: string; // e.g. "markenmehrwert.atlassian.net"
   email: string;
@@ -136,21 +138,7 @@ export class JiraClient {
     await this.request(`/issue/${issueKey}/comment`, {
       method: "POST",
       body: JSON.stringify({
-        body: {
-          version: 1,
-          type: "doc",
-          content: [
-            {
-              type: "paragraph",
-              content: [
-                {
-                  type: "text",
-                  text: commentBody,
-                },
-              ],
-            },
-          ],
-        },
+        body: markdownToAdf(commentBody),
       }),
     });
   }
@@ -255,16 +243,7 @@ export class JiraClient {
     };
 
     if (params.description) {
-      body.fields.description = {
-        version: 1,
-        type: "doc",
-        content: [
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: params.description }],
-          },
-        ],
-      };
+      body.fields.description = markdownToAdf(params.description);
     }
 
     if (params.priority) {
