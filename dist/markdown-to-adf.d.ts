@@ -2,7 +2,7 @@
  * Markdown → Atlassian Document Format (ADF) converter.
  *
  * Supports: headings, bold, italic, code (inline + fenced), lists (bullet + ordered),
- * horizontal rules, tables, and @mentions.
+ * blockquotes, horizontal rules, tables, and @mentions.
  *
  * No external dependencies.
  */
@@ -11,7 +11,7 @@ export interface AdfDocument {
     type: "doc";
     content: AdfBlock[];
 }
-export type AdfBlock = AdfHeading | AdfParagraph | AdfBulletList | AdfOrderedList | AdfCodeBlock | AdfRule | AdfTable;
+export type AdfBlock = AdfHeading | AdfParagraph | AdfBulletList | AdfOrderedList | AdfCodeBlock | AdfBlockquote | AdfRule | AdfTable;
 export interface AdfHeading {
     type: "heading";
     attrs: {
@@ -41,6 +41,10 @@ export interface AdfCodeBlock {
         language?: string;
     };
     content: AdfInline[];
+}
+export interface AdfBlockquote {
+    type: "blockquote";
+    content: AdfBlock[];
 }
 export interface AdfRule {
     type: "rule";

@@ -2,7 +2,7 @@
  * Markdown → Atlassian Document Format (ADF) converter.
  *
  * Supports: headings, bold, italic, code (inline + fenced), lists (bullet + ordered),
- * horizontal rules, tables, and @mentions.
+ * blockquotes, horizontal rules, tables, and @mentions.
  *
  * No external dependencies.
  */
@@ -23,6 +23,7 @@ export type AdfBlock =
   | AdfBulletList
   | AdfOrderedList
   | AdfCodeBlock
+  | AdfBlockquote
   | AdfRule
   | AdfTable;
 
@@ -56,6 +57,11 @@ export interface AdfCodeBlock {
   type: "codeBlock";
   attrs?: { language?: string };
   content: AdfInline[];
+}
+
+export interface AdfBlockquote {
+  type: "blockquote";
+  content: AdfBlock[];
 }
 
 export interface AdfRule {
@@ -284,26 +290,44 @@ export function markdownToAdf(markdown: string): AdfDocument {
       continue;
     }
 
-    // --- Table (collect consecutive | rows) ---
-    if (/^\|.+\|/.test(trimmed)) {
+    // --- Blockquote ---
+    if (/^>\s?/.test(trimmed)) {
       flushParagraph(paragraphBuffer);
       paragraphBuffer = [];
-      const tableLines: string[] = [];
-      while (i < lines.length && /^\|.+\|/.test(lines[i].trimEnd())) {
-        tableLines.push(lines[i]);
+      const quoteLines: string[] = [];
+      while (i < lines.length && /^>\s?/.test(lines[i].trimEnd())) {
+        quoteLines.push(lines[i].replace(/^>\s?/, ""));
         i++;
       }
-      blocks.push(parseTableBlock(tableLines));
+      const innerMarkdown = quoteLines.join("\n");
+      const innerDoc = markdownToAdf(innerMarkdown);
+      blocks.push({ type: "blockquote", content: innerDoc.content });
       continue;
     }
 
-    // --- Bullet list ---
-    if (/^[\s]*[-*+]\s+/.test(line)) {
+    // --- Table (requires header row + separator row like |---|---|) ---
+    if (/^\|.+\|/.test(trimmed)) {
+      const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
+      if (/^\|[\s\-:|]+\|$/.test(nextLine)) {
+        flushParagraph(paragraphBuffer);
+        paragraphBuffer = [];
+        const tableLines: string[] = [];
+        while (i < lines.length && /^\|.+\|/.test(lines[i].trimEnd())) {
+          tableLines.push(lines[i]);
+          i++;
+        }
+        blocks.push(parseTableBlock(tableLines));
+        continue;
+      }
+    }
+
+    // --- Bullet list (supports - * + and • markers) ---
+    if (/^[\s]*[-*+•]\s+/.test(line)) {
       flushParagraph(paragraphBuffer);
       paragraphBuffer = [];
       const items: AdfListItem[] = [];
-      while (i < lines.length && /^[\s]*[-*+]\s+/.test(lines[i])) {
-        const itemText = lines[i].replace(/^[\s]*[-*+]\s+/, "");
+      while (i < lines.length && /^[\s]*[-*+•]\s+/.test(lines[i])) {
+        const itemText = lines[i].replace(/^[\s]*[-*+•]\s+/, "");
         items.push({
           type: "listItem",
           content: [{ type: "paragraph", content: parseInline(itemText) }],
