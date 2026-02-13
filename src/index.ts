@@ -163,6 +163,37 @@ server.registerTool(
 );
 
 // ---------------------------------------------------------------------------
+// Tool: jira_get_comments
+// ---------------------------------------------------------------------------
+
+server.registerTool(
+  "jira_get_comments",
+  {
+    title: "Get JIRA Comments",
+    description:
+      "Get all comments on a JIRA issue. Returns comments with author, body (plain text), and timestamps. " +
+      "Comments are ordered newest first.",
+    inputSchema: {
+      issueKey: z.string().describe("JIRA issue key (e.g. 'MRP-404')"),
+      cwd: z.string().optional(),
+    },
+  },
+  async ({ issueKey, cwd: cwdArg }) => {
+    const cwd = cwdArg ?? process.cwd();
+    const { jira, instanceName } = getClients(cwd);
+    const comments = await jira.getComments(issueKey);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ instance: instanceName, issueKey, total: comments.length, comments }, null, 2),
+        },
+      ],
+    };
+  }
+);
+
+// ---------------------------------------------------------------------------
 // Tool: jira_assign_to_me
 // ---------------------------------------------------------------------------
 

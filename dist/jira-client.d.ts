@@ -42,6 +42,13 @@ export interface CreateIssueParams {
     priority?: string;
     assigneeAccountId?: string;
 }
+export interface JiraComment {
+    id: string;
+    author: string;
+    body: string;
+    created: string;
+    updated: string;
+}
 export interface JiraSprint {
     id: number;
     name: string;
@@ -66,6 +73,7 @@ export declare class JiraClient {
     getTransitions(issueKey: string): Promise<JiraTransition[]>;
     transitionIssue(issueKey: string, transitionId: string): Promise<void>;
     addComment(issueKey: string, commentBody: string): Promise<void>;
+    getComments(issueKey: string): Promise<JiraComment[]>;
     assignIssue(issueKey: string, accountId: string): Promise<void>;
     getMyself(): Promise<{
         accountId: string;

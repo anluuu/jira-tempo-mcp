@@ -73,6 +73,16 @@ export class JiraClient {
             }),
         });
     }
+    async getComments(issueKey) {
+        const data = await this.request(`/issue/${issueKey}/comment?orderBy=-created`);
+        return (data.comments ?? []).map((c) => ({
+            id: c.id,
+            author: c.author?.displayName ?? "Unknown",
+            body: c.body ? this.extractTextFromAdf(c.body) : "",
+            created: c.created,
+            updated: c.updated,
+        }));
+    }
     async assignIssue(issueKey, accountId) {
         await this.request(`/issue/${issueKey}/assignee`, {
             method: "PUT",

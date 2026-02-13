@@ -51,6 +51,14 @@ export interface CreateIssueParams {
   assigneeAccountId?: string;
 }
 
+export interface JiraComment {
+  id: string;
+  author: string;
+  body: string;
+  created: string;
+  updated: string;
+}
+
 export interface JiraSprint {
   id: number;
   name: string;
@@ -141,6 +149,17 @@ export class JiraClient {
         body: markdownToAdf(commentBody),
       }),
     });
+  }
+
+  async getComments(issueKey: string): Promise<JiraComment[]> {
+    const data = await this.request(`/issue/${issueKey}/comment?orderBy=-created`);
+    return (data.comments ?? []).map((c: any) => ({
+      id: c.id,
+      author: c.author?.displayName ?? "Unknown",
+      body: c.body ? this.extractTextFromAdf(c.body) : "",
+      created: c.created,
+      updated: c.updated,
+    }));
   }
 
   async assignIssue(issueKey: string, accountId: string): Promise<void> {
